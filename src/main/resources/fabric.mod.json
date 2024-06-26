@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 1,
+	"id": "coordmanager",
+	"version": "${version}",
+	"name": "Coord Manager",
+	"description": "A mod to manage locations",
+	"authors": [
+		"Panos Nikolakakis"
+	],
+	"contact": {
+		"homepage": "",
+		"sources": "https://github.com/panosnikolakakis/coord-manager"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.panosnikolakakis.coordmanager.CoordManager"
+		],
+		"client": [
+			"com.panosnikolakakis.coordmanager.CoordManagerClient"
+		],
+		"fabric-datagen": [
+			"com.panosnikolakakis.coordmanager.CoordManagerDataGenerator"
+		]
+	},
+	"mixins": [
+		"coordmanager.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.15.11",
+		"minecraft": "~1.21",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
