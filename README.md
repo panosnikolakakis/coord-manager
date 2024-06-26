@@ -1,5 +1,5 @@
 # Coord Manager
-Minecraft 1.21 fabric mod to manage locations (client/server)
+Minecraft fabric mod to manage locations (client/server)
 
 ## Commands
 - `/locationsave` Saves a location's coordinates. Usage: `/locationsave <LocationName>`. Note that if using a name that already exists, the previous location will be overwritten.
