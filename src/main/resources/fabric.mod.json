@@ -8,8 +8,9 @@
 		"Panos Nikolakakis"
 	],
 	"contact": {
-		"homepage": "",
-		"sources": "https://github.com/panosnikolakakis/coord-manager"
+		"homepage": "https://modrinth.com/mod/coord-manager",
+		"sources": "https://github.com/panosnikolakakis/coord-manager",
+		"issues": "https://github.com/panosnikolakakis/coord-manager/issues"
 	},
 	"license": "MIT",
 	"environment": "*",
