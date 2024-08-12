@@ -1,9 +1,6 @@
 package com.panosnikolakakis.coordmanager;
 
-import com.panosnikolakakis.coordmanager.commands.LocationDelete;
-import com.panosnikolakakis.coordmanager.commands.LocationFind;
-import com.panosnikolakakis.coordmanager.commands.LocationList;
-import com.panosnikolakakis.coordmanager.commands.LocationSave;
+import com.panosnikolakakis.coordmanager.commands.*;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -23,6 +20,7 @@ public class CoordManager implements ModInitializer {
 			LocationList.register(dispatcher);
 			LocationDelete.register(dispatcher);
 			LocationFind.register(dispatcher);
+			LocationTp.register(dispatcher);
 		});
 	}
 }
