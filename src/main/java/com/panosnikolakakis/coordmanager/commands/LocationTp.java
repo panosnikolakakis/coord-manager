@@ -12,16 +12,16 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.World;
+import net.minecraft.network.packet.s2c.play.PositionFlag;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class LocationTp {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
@@ -44,29 +44,33 @@ public class LocationTp {
                                                 int y = Integer.parseInt(coordinates[1]);
                                                 int z = Integer.parseInt(coordinates[2]);
 
-                                                ServerWorld targetWorld = getWorldByName(player.getServer(), dimension);
-                                                ServerWorld playerWorld = player.getServerWorld();
+                                                Identifier dimensionId = context.getSource().getPlayer().getEntityWorld().getRegistryKey().getValue();
+                                                String currentDimension = getDimensionName(dimensionId);
 
-                                                if (targetWorld == null) {
-                                                    context.getSource().sendError(Text.literal("Dimension '" + dimension + "' not found."));
-                                                    return 0;
-                                                }
+                                                ServerWorld world = getWorldByName(player, dimension);
 
-                                                if (targetWorld != playerWorld) {
-                                                    Text message = Text.literal("You must be in the " + dimension + " dimension to teleport to this location.");
-
+                                                if (world != null) {
+                                                    if (dimension.equalsIgnoreCase(currentDimension)) {
+                                                        player.teleport(world, x, y, z, EnumSet.noneOf(PositionFlag.class), 0.0F, 0.0F, false);
+                                                        Text message = Text.literal("Teleported to '")
+                                                                .append(Text.literal(locationName).setStyle(Style.EMPTY.withFormatting(Formatting.GOLD)))
+                                                                .append("'.");
+                                                        context.getSource().sendFeedback(() -> message, false);
+                                                        return 1;
+                                                    } else {
+                                                        Text message = Text.literal("Location '")
+                                                                .append(Text.literal(locationName).setStyle(Style.EMPTY.withFormatting(Formatting.GOLD)))
+                                                                .append("' is not in the same dimension as the player.");
+                                                        context.getSource().sendFeedback(() -> message, false);
+                                                        return 0;
+                                                    }
+                                                } else {
+                                                    Text message = Text.literal("Could not find the world for dimension '")
+                                                            .append(Text.literal(dimension).setStyle(Style.EMPTY.withFormatting(Formatting.RED)))
+                                                            .append("'.");
                                                     context.getSource().sendFeedback(() -> message, false);
                                                     return 0;
                                                 }
-
-                                                player.teleport(targetWorld, x + 0.5, y, z + 0.5, player.getYaw(), player.getPitch());
-
-                                                Text message = Text.literal("Teleported to '")
-                                                        .append(Text.literal(locationName).setStyle(Style.EMPTY.withFormatting(Formatting.GOLD)))
-                                                        .append("'.");
-
-                                                context.getSource().sendFeedback(() -> message, false);
-                                                return 1;
                                             }
                                         }
                                     }
@@ -119,6 +123,7 @@ public class LocationTp {
 
                 for (String line : lines) {
                     String cleanedLine = Formatting.strip(Text.of(line).getString());
+
                     String[] parts = cleanedLine.split(":", 3);
 
                     if (parts.length == 3) {
@@ -138,24 +143,48 @@ public class LocationTp {
         return Collections.emptyList();
     }
 
-    private static Path getFilePath(MinecraftServer server, Path worldSavePath) {
-        if (server.isDedicated()) {
-            return Paths.get("config").resolve("coordmanager").resolve("locations.txt");
-        } else {
-            return worldSavePath.resolve("coordmanager").resolve("locations.txt");
+    private static String getDimensionName(Identifier dimensionId) {
+        String dimensionName = dimensionId.toString();
+
+        switch (dimensionName) {
+            case "minecraft:overworld":
+                return "Overworld";
+            case "minecraft:the_nether":
+                return "Nether";
+            case "minecraft:the_end":
+                return "The End";
+            default:
+                return dimensionName; // For any other custom dimensions
         }
     }
 
-    private static ServerWorld getWorldByName(MinecraftServer server, String dimensionName) {
-        switch (dimensionName) {
-            case "Overworld":
+    private static ServerWorld getWorldByName(ServerPlayerEntity player, String dimensionName) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return null;
+        }
+
+        switch (dimensionName.toLowerCase()) {
+            case "overworld":
                 return server.getWorld(World.OVERWORLD);
-            case "Nether":
+            case "nether":
+            case "the_nether":
                 return server.getWorld(World.NETHER);
-            case "The End":
+            case "the end":
+            case "the_end":
                 return server.getWorld(World.END);
             default:
                 return null;
+        }
+    }
+
+    private static Path getFilePath(MinecraftServer server, Path worldSavePath) {
+        if (server.isDedicated()) {
+            // Server environment, use the config directory
+            return Paths.get("config").resolve("coordmanager").resolve("locations.txt");
+        } else {
+            // Single-player, use the world-specific directory
+            return worldSavePath.resolve("coordmanager").resolve("locations.txt");
         }
     }
 }
