@@ -19,6 +19,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.panosnikolakakis.coordmanager.utils.Utils.getFilePath;
+import static com.panosnikolakakis.coordmanager.utils.Utils.getLocationNames;
+
 public class LocationDelete {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(
@@ -87,35 +90,5 @@ public class LocationDelete {
             List<String> suggestions = getLocationNames(context.getSource().getServer(), context.getSource().getWorld().getServer().getSavePath(WorldSavePath.ROOT));
             return CommandSource.suggestMatching(suggestions, builder);
         };
-    }
-
-    private static List<String> getLocationNames(MinecraftServer server, Path worldSavePath) {
-        List<String> names = new ArrayList<>();
-        try {
-            Path filePath = getFilePath(server, worldSavePath);
-
-            if (Files.exists(filePath)) {
-                List<String> lines = Files.readAllLines(filePath);
-                for (String line : lines) {
-                    String[] parts = line.split(":");
-                    if (parts.length > 0) {
-                        names.add(parts[0].trim());
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return names;
-    }
-
-    private static Path getFilePath(MinecraftServer server, Path worldSavePath) {
-        if (server.isDedicated()) {
-            // Server environment, use the config directory
-            return Paths.get("config").resolve("coordmanager").resolve("locations.txt");
-        } else {
-            // Single-player, use the world-specific directory
-            return worldSavePath.resolve("coordmanager").resolve("locations.txt");
-        }
     }
 }

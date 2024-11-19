@@ -17,6 +17,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.panosnikolakakis.coordmanager.utils.Utils.getDimensionColor;
+
 public class LocationList {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(
@@ -35,6 +37,8 @@ public class LocationList {
                                         String locationName = parts[0].trim();
                                         String dimension = parts[1].trim();
                                         String coordinates = parts[2].trim().replace(" ", ", ");
+
+
 
                                         Text locationMessage = Text.literal("- ")
                                                 .append(Text.literal(locationName).setStyle(Style.EMPTY.withFormatting(Formatting.GOLD)))
@@ -78,19 +82,6 @@ public class LocationList {
         } else {
             // Singleplayer
             return worldSavePath.resolve("coordmanager");
-        }
-    }
-
-    private static Formatting getDimensionColor(String dimensionName) {
-        switch (dimensionName) {
-            case "Overworld":
-                return Formatting.GREEN;
-            case "Nether":
-                return Formatting.RED;
-            case "The End":
-                return Formatting.DARK_PURPLE;
-            default:
-                return Formatting.WHITE;
         }
     }
 }

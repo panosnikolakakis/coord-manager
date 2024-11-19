@@ -17,11 +17,9 @@ import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.World;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
+
+import static com.panosnikolakakis.coordmanager.utils.Utils.*;
 
 public class LocationTp {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
@@ -93,56 +91,6 @@ public class LocationTp {
         };
     }
 
-    private static List<String> getLocationNames(MinecraftServer server, Path worldSavePath) {
-        List<String> names = new ArrayList<>();
-        try {
-            Path filePath = getFilePath(server, worldSavePath);
-
-            if (Files.exists(filePath)) {
-                List<String> lines = Files.readAllLines(filePath);
-                for (String line : lines) {
-                    String[] parts = line.split(":", 2);
-                    if (parts.length > 0) {
-                        names.add(parts[0].trim());
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return names;
-    }
-
-    private static List<String> getLocationLines(MinecraftServer server, Path worldSavePath, String locationName) {
-        try {
-            Path filePath = getFilePath(server, worldSavePath);
-
-            if (Files.exists(filePath)) {
-                List<String> lines = Files.readAllLines(filePath);
-                List<String> foundLines = new ArrayList<>();
-
-                for (String line : lines) {
-                    String cleanedLine = Formatting.strip(Text.of(line).getString());
-
-                    String[] parts = cleanedLine.split(":", 3);
-
-                    if (parts.length == 3) {
-                        String foundLocationName = parts[0].trim();
-
-                        if (foundLocationName.equalsIgnoreCase(locationName.trim())) {
-                            foundLines.add(line);
-                        }
-                    }
-                }
-
-                return foundLines;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return Collections.emptyList();
-    }
-
     private static String getDimensionName(Identifier dimensionId) {
         String dimensionName = dimensionId.toString();
 
@@ -175,16 +123,6 @@ public class LocationTp {
                 return server.getWorld(World.END);
             default:
                 return null;
-        }
-    }
-
-    private static Path getFilePath(MinecraftServer server, Path worldSavePath) {
-        if (server.isDedicated()) {
-            // Server environment, use the config directory
-            return Paths.get("config").resolve("coordmanager").resolve("locations.txt");
-        } else {
-            // Single-player, use the world-specific directory
-            return worldSavePath.resolve("coordmanager").resolve("locations.txt");
         }
     }
 }
