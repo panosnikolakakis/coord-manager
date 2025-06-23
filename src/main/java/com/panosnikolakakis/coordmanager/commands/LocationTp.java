@@ -42,7 +42,7 @@ public class LocationTp {
                                                 int y = Integer.parseInt(coordinates[1]);
                                                 int z = Integer.parseInt(coordinates[2]);
 
-                                                Identifier dimensionId = context.getSource().getPlayer().getEntityWorld().getRegistryKey().getValue();
+                                                Identifier dimensionId = context.getSource().getPlayer().getWorld().getRegistryKey().getValue();
                                                 String currentDimension = getDimensionName(dimensionId);
 
                                                 ServerWorld world = getWorldByName(player, dimension);

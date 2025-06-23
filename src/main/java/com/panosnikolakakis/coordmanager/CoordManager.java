@@ -1,6 +1,7 @@
 package com.panosnikolakakis.coordmanager;
 
 import com.panosnikolakakis.coordmanager.commands.*;
+import com.panosnikolakakis.coordmanager.utils.PlayerJoinListener;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -22,5 +23,7 @@ public class CoordManager implements ModInitializer {
 			LocationFind.register(dispatcher);
 			LocationTp.register(dispatcher);
 		});
+
+		PlayerJoinListener.register();
 	}
 }

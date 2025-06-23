@@ -78,3 +78,12 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+
+loom {
+	runs {
+		client {
+			client()
+			name = "Minecraft Client"
+		}
+	}
+}

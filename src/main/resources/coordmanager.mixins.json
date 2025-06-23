@@ -3,7 +3,7 @@
 	"package": "com.panosnikolakakis.coordmanager.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"EntityCommandTagAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

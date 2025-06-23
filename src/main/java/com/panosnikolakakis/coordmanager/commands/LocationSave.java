@@ -2,15 +2,23 @@ package com.panosnikolakakis.coordmanager.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 import java.io.IOException;
@@ -34,7 +42,7 @@ public class LocationSave {
                                     int adjustedYPos = (int) Math.ceil(playerPos.y);
                                     int adjustedZPos = (int) Math.floor(playerPos.z);
 
-                                    Identifier dimensionId = context.getSource().getPlayer().getEntityWorld().getRegistryKey().getValue();
+                                    Identifier dimensionId = context.getSource().getPlayer().getWorld().getRegistryKey().getValue();
 
                                     saveLocationToFile(player, locationName, adjustedXPos, adjustedYPos, adjustedZPos, dimensionId);
 
@@ -46,6 +54,8 @@ public class LocationSave {
                                             .append(Text.literal(adjustedXPos + ", " + adjustedYPos + ", " + adjustedZPos).setStyle(Style.EMPTY.withFormatting(Formatting.WHITE)));
 
                                     context.getSource().sendFeedback(() -> message, false);
+                                    makeWaypoint(player, locationName, new BlockPos(adjustedXPos, adjustedYPos, adjustedZPos), dimensionId);
+
                                     return 1;
                                 })
                         )
@@ -126,4 +136,100 @@ public class LocationSave {
                 return Formatting.WHITE;
         }
     }
+
+    private static void makeWaypoint(ServerPlayerEntity player, String name, BlockPos pos, Identifier dimensionId) {
+        ServerWorld world = player.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, dimensionId));
+        if (world == null) return;
+
+        ArmorStandEntity marker = new ArmorStandEntity(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+
+        marker.setCustomName(Text.literal(name));
+        marker.setCustomNameVisible(false);
+        marker.addCommandTag("coordmanager_waypoint");
+        marker.setInvisible(true);
+        marker.setInvulnerable(true);
+        marker.setNoGravity(true);
+        marker.setSilent(true);
+
+        world.spawnEntity(marker);
+        EntityAttributeInstance markerAttr = marker.getAttributeInstance(EntityAttributes.WAYPOINT_TRANSMIT_RANGE);
+        markerAttr.setBaseValue(300);
+    }
+
+    public static void syncWaypoints(ServerPlayerEntity player, Identifier targetDimension) {
+        Path filePath = getSavePath(player.getServer(), player.getWorld().getServer().getSavePath(WorldSavePath.ROOT)).resolve("locations.txt");
+
+        if (!Files.exists(filePath)) return;
+
+        try {
+            List<String> lines = Files.readAllLines(filePath);
+
+            for (String line : lines) {
+                // Format: name: DimensionName: x y z
+                String[] parts = line.split(":");
+                if (parts.length != 3) continue;
+
+                String name = parts[0].trim();
+                String dimensionName = parts[1].trim().toLowerCase();
+                String[] coords = parts[2].trim().split(" ");
+                if (coords.length != 3) continue;
+
+                // Convert dimensionName to Identifier
+                Identifier dimId;
+                switch (dimensionName) {
+                    case "nether" -> dimId = Identifier.of("minecraft", "the_nether");
+                    case "the end" -> dimId = Identifier.of("minecraft", "the_end");
+                    case "overworld" -> dimId = Identifier.of("minecraft", "overworld");
+                    default -> {
+                        System.err.println("[CoordManager] Unknown dimension in line: " + line);
+                        continue;
+                    }
+                }
+
+                // Only continue if this line’s dimension matches the targetDimension
+                if (!dimId.equals(targetDimension)) continue;
+
+                int x = Integer.parseInt(coords[0]);
+                int y = Integer.parseInt(coords[1]);
+                int z = Integer.parseInt(coords[2]);
+                BlockPos pos = new BlockPos(x, y, z);
+
+                ServerWorld world = player.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, dimId));
+                if (world == null) {
+                    System.err.println("[CoordManager] Could not get world for dimension ID: " + dimId);
+                    continue;
+                }
+
+                Vec3d center = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+                double radius = 1.0;
+
+                Box searchBox = new Box(
+                        center.x - radius, center.y - radius, center.z - radius,
+                        center.x + radius, center.y + radius, center.z + radius
+                );
+
+                List<ArmorStandEntity> nearbyStands = world.getEntitiesByClass(
+                        ArmorStandEntity.class,
+                        searchBox,
+                        e -> true
+                );
+
+                boolean exists = nearbyStands.stream().anyMatch(e ->
+                        e.getCommandTags().contains("coordmanager_waypoint") &&
+                                e.getCustomName() != null &&
+                                e.getCustomName().getString().trim().equals(name.trim())
+                );
+
+                if (!exists) {
+                    System.out.println("[CoordManager] Spawning missing waypoint '" + name + "' at " + pos + " in " + dimId);
+                    makeWaypoint(player, name, pos, dimId);
+                }
+            }
+
+        } catch (IOException | NumberFormatException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }
