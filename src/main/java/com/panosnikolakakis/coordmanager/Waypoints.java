@@ -1,17 +1,24 @@
 package com.panosnikolakakis.coordmanager;
 
+import com.panosnikolakakis.coordmanager.core.Config;
 import com.panosnikolakakis.coordmanager.core.Location;
 import com.panosnikolakakis.coordmanager.core.LocationRepository;
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.waypoints.Waypoint;
+import net.minecraft.world.waypoints.WaypointStyleAsset;
+import net.minecraft.world.waypoints.WaypointStyleAssets;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,12 +32,19 @@ import java.util.UUID;
  */
 final class Waypoints {
 	private final boolean enabled;
+	private final ResourceKey<WaypointStyleAsset> style;
+	private final OptionalInt color;
 	private final LocationRepository repository;
 	/** Waypoint ids currently shown to each player, so they can be removed precisely. */
 	private final Map<UUID, Set<UUID>> shown = new HashMap<>();
 
-	Waypoints(boolean enabled, LocationRepository repository) {
-		this.enabled = enabled;
+	Waypoints(Config config, LocationRepository repository) {
+		this.enabled = config.waypoints();
+		this.style = parseStyle(config.waypointStyle());
+		this.color = config.waypointRgb();
+		if (color.isEmpty() && !config.waypointColor().isEmpty()) {
+			CoordManager.LOGGER.warn("waypointColor '{}' isn't a #RRGGBB colour; giving each location its own colour.", config.waypointColor());
+		}
 		this.repository = repository;
 	}
 
@@ -56,7 +70,7 @@ final class Waypoints {
 		for (Location location : repository.inDimension(dimension)) {
 			UUID id = idFor(location);
 			player.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(
-					id, new Waypoint.Icon(), new Vec3i(location.x(), location.y(), location.z())));
+					id, icon(), new Vec3i(location.x(), location.y(), location.z())));
 			now.add(id);
 		}
 		shown.put(player.getUUID(), now);
@@ -66,6 +80,28 @@ final class Waypoints {
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			refresh(player);
 		}
+	}
+
+	/**
+	 * The locator-bar icon. The style is what sets locations apart from players (who use the
+	 * default dot). With no fixed colour, the client colours each waypoint from its id.
+	 */
+	private Waypoint.Icon icon() {
+		Waypoint.Icon icon = new Waypoint.Icon();
+		icon.style = style;
+		if (color.isPresent()) {
+			icon.color = Optional.of(0xFF000000 | color.getAsInt());
+		}
+		return icon;
+	}
+
+	private static ResourceKey<WaypointStyleAsset> parseStyle(String id) {
+		Identifier parsed = Identifier.tryParse(id);
+		if (parsed == null) {
+			CoordManager.LOGGER.warn("waypointStyle '{}' isn't a valid id; using {}.", id, Config.DEFAULT_WAYPOINT_STYLE);
+			return WaypointStyleAssets.BOWTIE;
+		}
+		return ResourceKey.create(WaypointStyleAssets.ROOT_ID, parsed);
 	}
 
 	void forget(ServerPlayer player) {

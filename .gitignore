@@ -42,3 +42,6 @@ replay_*.log
 # loom mapping migration output
 
 remappedSrc/
+
+# local build output
+build.log

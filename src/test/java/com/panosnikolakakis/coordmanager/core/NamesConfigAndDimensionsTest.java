@@ -50,5 +50,16 @@ class NamesConfigAndDimensionsTest {
 		assertFalse(config.teleportRequiresOp());
 		assertTrue(config.waypoints());
 		assertTrue(Files.readString(file).contains("listPageSize"));
+		assertEquals(Config.DEFAULT_WAYPOINT_STYLE, config.waypointStyle());
+	}
+
+	@Test
+	void waypointColourParsing() {
+		assertEquals(0xEFBF04, Config.DEFAULTS.waypointRgb().getAsInt());
+		assertTrue(new Config(true, true, true, "", "", 10).waypointRgb().isEmpty());
+		assertEquals(0xFFAA00, new Config(true, true, true, "", "#FFAA00", 10).waypointRgb().getAsInt());
+		assertEquals(0x00FF00, new Config(true, true, true, "", "00ff00", 10).waypointRgb().getAsInt());
+		assertTrue(new Config(true, true, true, "", "orange", 10).waypointRgb().isEmpty());
+		assertEquals(Config.DEFAULT_WAYPOINT_STYLE, new Config(true, true, true, " ", "", 10).waypointStyle());
 	}
 }

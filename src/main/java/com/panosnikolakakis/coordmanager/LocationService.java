@@ -47,7 +47,7 @@ final class LocationService {
 
 		LocationRepository repository = LocationRepository.open(dir.resolve("locations.json"), legacy, CoordManager.LOGGER::info);
 		CoordManager.LOGGER.info("Loaded {} saved location(s).", repository.size());
-		return new LocationService(server, repository, new Waypoints(config.waypoints(), repository));
+		return new LocationService(server, repository, new Waypoints(config, repository));
 	}
 
 	Waypoints waypoints() {

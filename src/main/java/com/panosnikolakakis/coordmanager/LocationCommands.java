@@ -30,8 +30,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * All commands. {@code /loc <action>} is the main form; the 1.x names
- * ({@code /locationsave} and friends) are kept so nobody's muscle memory breaks.
+ * All commands live under {@code /loc}.
  */
 final class LocationCommands {
 	private static final String NAME = "name";
@@ -55,13 +54,6 @@ final class LocationCommands {
 				.then(Commands.literal("waypoints")
 						.then(Commands.literal("on").executes(context -> setWaypoints(context, true)))
 						.then(Commands.literal("off").executes(context -> setWaypoints(context, false)))));
-
-		// 1.x command names.
-		dispatcher.register(Commands.literal("locationsave").then(newName().executes(LocationCommands::save)));
-		dispatcher.register(Commands.literal("locationlist").executes(context -> list(context, 1)));
-		dispatcher.register(Commands.literal("locationfind").then(existingName().executes(LocationCommands::find)));
-		dispatcher.register(Commands.literal("locationtp").requires(canTeleport).then(existingName().executes(LocationCommands::teleport)));
-		dispatcher.register(Commands.literal("locationdelete").then(existingName().executes(LocationCommands::delete)));
 	}
 
 	private static RequiredArgumentBuilder<CommandSourceStack, String> newName() {
