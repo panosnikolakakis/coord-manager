@@ -54,8 +54,7 @@ locations, and operators can change any of them.
 
 ## Where data is stored
 
-Each world keeps its own list in `<world>/coordmanager/locations.json`, on dedicated servers
-as well as in singleplayer. The file is plain JSON, so you can back it up or edit it by hand (with the game or server stopped, or your edits will be overwritten).
+Each world keeps its own list in `<world>/coordmanager/locations.json`, on dedicated servers as well as in singleplayer.
 
 ### Upgrading from 1.x
 
