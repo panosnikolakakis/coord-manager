@@ -9,10 +9,10 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.panosnikolakakis.coordmanager.core.Config;
 import com.panosnikolakakis.coordmanager.core.Location;
 import com.panosnikolakakis.coordmanager.core.LocationNames;
+import com.panosnikolakakis.coordmanager.core.LocationSearch;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
@@ -34,6 +34,7 @@ import java.util.function.Predicate;
  */
 final class LocationCommands {
 	private static final String NAME = "name";
+	private static final int MAX_CHOICES = 8;
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneOffset.UTC);
 
 	private LocationCommands() {
@@ -60,11 +61,16 @@ final class LocationCommands {
 		return Commands.argument(NAME, StringArgumentType.greedyString());
 	}
 
+	/** A location name argument whose tab completion matches any part of a name, not just the start. */
 	private static RequiredArgumentBuilder<CommandSourceStack, String> existingName() {
 		return Commands.argument(NAME, StringArgumentType.greedyString())
 				.suggests((context, builder) -> {
 					LocationService service = CoordManager.service();
-					return SharedSuggestionProvider.suggest(service == null ? List.of() : service.names(), builder);
+					if (service != null) {
+						// Vanilla's helper only offers names that start with the typed text, so suggest directly.
+						LocationSearch.rank(builder.getRemaining(), service.names()).forEach(builder::suggest);
+					}
+					return builder.buildFuture();
 				});
 	}
 
@@ -167,7 +173,7 @@ final class LocationCommands {
 
 	private static int find(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
-		Optional<Location> found = lookup(context);
+		Optional<Location> found = lookup(context, "find", true);
 		if (found.isEmpty()) return 0;
 		Location location = found.get();
 
@@ -199,7 +205,7 @@ final class LocationCommands {
 	private static int teleport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
 		CommandSourceStack source = context.getSource();
 		ServerPlayer player = source.getPlayerOrException();
-		Optional<Location> found = lookup(context);
+		Optional<Location> found = lookup(context, "tp", true);
 		if (found.isEmpty()) return 0;
 		Location location = found.get();
 
@@ -217,7 +223,7 @@ final class LocationCommands {
 
 	private static int delete(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
-		Optional<Location> found = lookup(context);
+		Optional<Location> found = lookup(context, "delete", false);
 		if (found.isEmpty()) return 0;
 		Location location = found.get();
 
@@ -258,18 +264,56 @@ final class LocationCommands {
 
 	// ---- helpers ----
 
-	private static Optional<Location> lookup(CommandContext<CommandSourceStack> context) {
+	/**
+	 * Finds the location a command refers to. With {@code allowPartial}, part of a name is enough
+	 * if only one location matches ({@code /loc find th} finds "over there"). Otherwise, and when
+	 * several match, the player gets clickable choices instead of a guess.
+	 */
+	private static Optional<Location> lookup(CommandContext<CommandSourceStack> context, String action, boolean allowPartial) {
 		CommandSourceStack source = context.getSource();
 		LocationService service = requireService(source);
 		if (service == null) return Optional.empty();
 
-		String name = LocationNames.clean(StringArgumentType.getString(context, NAME));
-		Optional<Location> location = service.get(name);
-		if (location.isEmpty()) {
-			source.sendFailure(Component.literal("No location named '" + name + "'. ")
-					.append(Chat.runButton("See all", ChatFormatting.YELLOW, "/loc list", "List saved locations")));
+		String typed = LocationNames.clean(StringArgumentType.getString(context, NAME));
+		LocationSearch.Result result = LocationSearch.resolve(typed, service.names());
+
+		if (result instanceof LocationSearch.Result.Found found && (found.exact() || allowPartial)) {
+			return service.get(found.name());
 		}
-		return location;
+
+		List<String> candidates = switch (result) {
+			case LocationSearch.Result.Found match -> List.of(match.name());
+			case LocationSearch.Result.Ambiguous matches -> matches.names();
+			case LocationSearch.Result.None nothing -> List.of();
+		};
+
+		if (candidates.isEmpty()) {
+			source.sendFailure(Component.literal("No location named '" + typed + "'. ")
+					.append(Chat.runButton("See all", ChatFormatting.YELLOW, "/loc list", "List saved locations")));
+			return Optional.empty();
+		}
+
+		MutableComponent message = Component.literal(candidates.size() == 1
+				? "No location named '" + typed + "'. Did you mean "
+				: "Several locations match '" + typed + "': ");
+		int shown = Math.min(candidates.size(), MAX_CHOICES);
+		for (int i = 0; i < shown; i++) {
+			String name = candidates.get(i);
+			String command = "/loc " + action + " " + name;
+			// Deleting is never one click away: the button only fills in the command.
+			message.append(allowPartial
+					? Chat.runButton(name, ChatFormatting.GOLD, command, command)
+					: Chat.suggestButton(name, ChatFormatting.GOLD, command, "Puts " + command + " in chat for you to confirm"));
+			if (i < shown - 1) message.append(" ");
+		}
+		if (candidates.size() > shown) {
+			message.append(Chat.gray(" and " + (candidates.size() - shown) + " more"));
+		}
+		if (candidates.size() == 1) {
+			message.append("?");
+		}
+		source.sendFailure(message);
+		return Optional.empty();
 	}
 
 	private static LocationService requireService(CommandSourceStack source) {

@@ -15,6 +15,7 @@ for server use: put the mod jar in the server /mods folder, no client mod needed
 - `/loc waypoints on|off` Shows or hides saved locations on your own locator bar. Locations use the "bowtie" waypoint style by default (configurable).
 
 Names can contain spaces and are case-insensitive (`Home` and `home` are the same location).
+You don't have to type the whole name: tab completion and `/loc find` and `/loc tp` match any part of it, so `/loc find th` finds `over there`. If several locations match, you get a clickable list to pick from. `/loc delete` always needs the full name.
 The 1.x commands (`/locationsave` and so on) have been replaced by `/loc`.
 
 In the list and find outputs you can click:
